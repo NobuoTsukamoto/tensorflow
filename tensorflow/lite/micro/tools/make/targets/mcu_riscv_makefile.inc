@@ -1,5 +1,6 @@
 # Settings for RISCV 32-bit MCU toolchain.
 ifeq ($(TARGET), riscv32_mcu)
+  export PATH := $(MAKEFILE_DIR)/downloads/riscv_toolchain/bin/:$(PATH)
   TARGET_ARCH := riscv32_mcu
   TARGET_TOOLCHAIN_PREFIX := riscv64-unknown-elf-
 
