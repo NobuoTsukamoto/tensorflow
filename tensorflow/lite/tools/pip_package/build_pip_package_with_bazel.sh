@@ -41,6 +41,7 @@ if [ ! -z "${CI_BUILD_HOME}" ] && [ `pwd` = "/workspace" ]; then
 fi
 
 # Build source tree.
+# See details: https://github.com/tensorflow/tensorflow/pull/49199
 rm -rf "${BUILD_DIR}" && mkdir -p "${BUILD_DIR}/tflite_runtime"
 cp -r "${TENSORFLOW_LITE_DIR}/tools/pip_package/debian" \
       "${TENSORFLOW_LITE_DIR}/tools/pip_package/setup_with_binary.py" \
@@ -48,6 +49,8 @@ cp -r "${TENSORFLOW_LITE_DIR}/tools/pip_package/debian" \
       "${TENSORFLOW_LITE_DIR}/python/interpreter_wrapper" \
       "${BUILD_DIR}"
 cp "${TENSORFLOW_LITE_DIR}/python/interpreter.py" \
+   "${TENSORFLOW_LITE_DIR}/python/metrics_interface.py" \
+   "${TENSORFLOW_LITE_DIR}/python/metrics_portable.py" \
    "${BUILD_DIR}/tflite_runtime"
 echo "__version__ = '${PACKAGE_VERSION}'" >> "${BUILD_DIR}/tflite_runtime/__init__.py"
 echo "__git_version__ = '$(git -C "${TENSORFLOW_DIR}" describe)'" >> "${BUILD_DIR}/tflite_runtime/__init__.py"
@@ -68,10 +71,10 @@ case "${TENSORFLOW_TARGET}" in
       --copt=-O3"
     ;;
   native)
-    BAZEL_FLAGS="--copt=-O3 --copt=-march=native"
+    BAZEL_FLAGS="--copt=-O3 --copt=-march=native --define=tflite_with_xnnpack=true"
     ;;
   *)
-    BAZEL_FLAGS="--copt=-O3"
+    BAZEL_FLAGS="--copt=-O3 --define=tflite_with_xnnpack=true"
     ;;
 esac
 

@@ -337,6 +337,14 @@ class Interpreter(object):
       raise ValueError('Unrecognized passed in op resolver type: {}'.format(
           experimental_op_resolver_type))
 
+    if num_threads is not None:
+      if not isinstance(num_threads, int):
+        raise ValueError('type of num_threads should be int')
+      if num_threads < 1:
+        raise ValueError('num_threads should >= 1')
+    else:
+      num_threads = 0
+
     if model_path and not model_content:
       custom_op_registerers_by_name = [
           x for x in self._custom_op_registerers if isinstance(x, str)
@@ -348,7 +356,8 @@ class Interpreter(object):
           _interpreter_wrapper.CreateWrapperFromFile(
               model_path, op_resolver_id, custom_op_registerers_by_name,
               custom_op_registerers_by_func,
-              experimental_preserve_all_tensors))
+              experimental_preserve_all_tensors,
+              num_threads))
       if not self._interpreter:
         raise ValueError('Failed to open {}'.format(model_path))
     elif model_content and not model_path:
@@ -366,18 +375,19 @@ class Interpreter(object):
           _interpreter_wrapper.CreateWrapperFromBuffer(
               model_content, op_resolver_id, custom_op_registerers_by_name,
               custom_op_registerers_by_func,
-              experimental_preserve_all_tensors))
+              experimental_preserve_all_tensors,
+              num_threads))
     elif not model_content and not model_path:
       raise ValueError('`model_path` or `model_content` must be specified.')
     else:
       raise ValueError('Can\'t both provide `model_path` and `model_content`')
 
-    if num_threads is not None:
-      if not isinstance(num_threads, int):
-        raise ValueError('type of num_threads should be int')
-      if num_threads < 1:
-        raise ValueError('num_threads should >= 1')
-      self._interpreter.SetNumThreads(num_threads)
+    # if num_threads is not None:
+    #   if not isinstance(num_threads, int):
+    #     raise ValueError('type of num_threads should be int')
+    #   if num_threads < 1:
+    #     raise ValueError('num_threads should >= 1')
+    #   self._interpreter.SetNumThreads(num_threads)
 
     # Each delegate is a wrapper that owns the delegates that have been loaded
     # as plugins. The interpreter wrapper will be using them, but we need to

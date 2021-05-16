@@ -73,7 +73,9 @@ using python_utils::PyDecrefDeleter;
 
 std::unique_ptr<Interpreter> CreateInterpreter(
     const InterpreterWrapper::Model* model,
-    const tflite::MutableOpResolver& resolver, bool preserve_all_tensors) {
+    const tflite::MutableOpResolver& resolver, bool preserve_all_tensors,
+    const int num_threads
+    ) {
   if (!model) {
     return nullptr;
   }
@@ -83,8 +85,15 @@ std::unique_ptr<Interpreter> CreateInterpreter(
   std::unique_ptr<Interpreter> interpreter;
   InterpreterBuilder builder(*model, resolver);
   if (preserve_all_tensors) builder.PreserveAllTensorsExperimental();
-  if (builder(&interpreter) != kTfLiteOk) {
-    return nullptr;
+  if (num_threads > 0)
+  {
+    if (builder(&interpreter, num_threads) != kTfLiteOk) {
+      return nullptr;
+    }
+  } else {
+    if (builder(&interpreter) != kTfLiteOk) {
+      return nullptr;
+    }
   }
   return interpreter;
 }
@@ -181,7 +190,8 @@ InterpreterWrapper* InterpreterWrapper::CreateInterpreterWrapper(
     std::unique_ptr<PythonErrorReporter> error_reporter,
     const std::vector<std::string>& registerers_by_name,
     const std::vector<std::function<void(uintptr_t)>>& registerers_by_func,
-    std::string* error_msg, bool preserve_all_tensors) {
+    std::string* error_msg, bool preserve_all_tensors,
+    const int num_threads) {
   if (!model) {
     *error_msg = error_reporter->message();
     return nullptr;
@@ -215,7 +225,7 @@ InterpreterWrapper* InterpreterWrapper::CreateInterpreterWrapper(
     registerer(reinterpret_cast<uintptr_t>(resolver.get()));
   }
   auto interpreter =
-      CreateInterpreter(model.get(), *resolver, preserve_all_tensors);
+      CreateInterpreter(model.get(), *resolver, preserve_all_tensors, num_threads);
   if (!interpreter) {
     *error_msg = error_reporter->message();
     return nullptr;
@@ -736,30 +746,33 @@ InterpreterWrapper* InterpreterWrapper::CreateWrapperCPPFromFile(
     const char* model_path, int op_resolver_id,
     const std::vector<std::string>& registerers_by_name,
     const std::vector<std::function<void(uintptr_t)>>& registerers_by_func,
-    std::string* error_msg, bool preserve_all_tensors) {
+    std::string* error_msg, bool preserve_all_tensors,
+    const int num_threads) {
   std::unique_ptr<PythonErrorReporter> error_reporter(new PythonErrorReporter);
   std::unique_ptr<InterpreterWrapper::Model> model =
       Model::BuildFromFile(model_path, error_reporter.get());
   return CreateInterpreterWrapper(std::move(model), op_resolver_id,
                                   std::move(error_reporter),
                                   registerers_by_name, registerers_by_func,
-                                  error_msg, preserve_all_tensors);
+                                  error_msg, preserve_all_tensors,
+                                  num_threads);
 }
 
 InterpreterWrapper* InterpreterWrapper::CreateWrapperCPPFromFile(
     const char* model_path, int op_resolver_id,
     const std::vector<std::string>& registerers, std::string* error_msg,
-    bool preserve_all_tensors) {
+    bool preserve_all_tensors, const int num_threads) {
   return CreateWrapperCPPFromFile(model_path, op_resolver_id, registerers,
                                   {} /*registerers_by_func*/, error_msg,
-                                  preserve_all_tensors);
+                                  preserve_all_tensors, num_threads);
 }
 
 InterpreterWrapper* InterpreterWrapper::CreateWrapperCPPFromBuffer(
     PyObject* data, int op_resolver_id,
     const std::vector<std::string>& registerers_by_name,
     const std::vector<std::function<void(uintptr_t)>>& registerers_by_func,
-    std::string* error_msg, bool preserve_all_tensors) {
+    std::string* error_msg, bool preserve_all_tensors,
+    const int num_threads) {
   char* buf = nullptr;
   Py_ssize_t length;
   std::unique_ptr<PythonErrorReporter> error_reporter(new PythonErrorReporter);
@@ -772,15 +785,16 @@ InterpreterWrapper* InterpreterWrapper::CreateWrapperCPPFromBuffer(
   return CreateInterpreterWrapper(std::move(model), op_resolver_id,
                                   std::move(error_reporter),
                                   registerers_by_name, registerers_by_func,
-                                  error_msg, preserve_all_tensors);
+                                  error_msg, preserve_all_tensors,
+                                  num_threads);
 }
 
 InterpreterWrapper* InterpreterWrapper::CreateWrapperCPPFromBuffer(
     PyObject* data, int op_resolver_id,
     const std::vector<std::string>& registerers, std::string* error_msg,
-    bool preserve_all_tensors) {
+    bool preserve_all_tensors, const int num_threads) {
   return CreateWrapperCPPFromBuffer(data, op_resolver_id, registerers, {},
-                                    error_msg, preserve_all_tensors);
+                                    error_msg, preserve_all_tensors, num_threads);
 }
 
 PyObject* InterpreterWrapper::ResetVariableTensors() {
